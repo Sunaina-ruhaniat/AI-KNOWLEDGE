@@ -10,24 +10,27 @@ import {
   AlertTriangle,
   Sparkles,
   TrendingUp,
-  TrendingDown,
   Percent,
   Calendar,
   IndianRupee,
   FileText,
-  Building2,
-  RefreshCw,
   Download,
   Share2,
   Shield,
   Target,
-  BookOpen,
   Brain,
   ChevronDown,
   ChevronUp,
   Info,
   Award,
-  BarChart3
+  BarChart3,
+  Building2,
+  Gauge,
+  Zap,
+  TrendingDown,
+  Activity,
+  Eye,
+  MessageSquare
 } from "lucide-react"
 import { LoanFormData } from "./loan-form"
 
@@ -81,14 +84,26 @@ interface AnalysisResult {
   eligibleBanks: BankEligibility[]
   policyReferences: PolicyReference[]
   reasoningSteps: string[]
+  underwritingNotes: string[]
+  keyObservations: string[]
 }
+
+const processingSteps = [
+  "Analyzing applicant profile...",
+  "Matching lender underwriting rules...",
+  "Evaluating banking policies...",
+  "Checking credit eligibility...",
+  "Generating lender recommendations..."
+]
 
 export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecommendationProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(true)
   const [progress, setProgress] = useState(0)
+  const [currentProcessingStep, setCurrentProcessingStep] = useState(0)
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [showPolicyDetails, setShowPolicyDetails] = useState(false)
   const [showReasoningDetails, setShowReasoningDetails] = useState(false)
+  const [showAIAssistant, setShowAIAssistant] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -97,32 +112,36 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           clearInterval(interval)
           return 100
         }
-        return prev + Math.random() * 12
+        return prev + Math.random() * 8
       })
     }, 200)
+
+    const stepInterval = setInterval(() => {
+      setCurrentProcessingStep(prev => (prev + 1) % processingSteps.length)
+    }, 700)
 
     const timeout = setTimeout(() => {
       setIsAnalyzing(false)
       setResult(generateMockResult())
-    }, 3500)
+    }, 4000)
 
     return () => {
       clearInterval(interval)
+      clearInterval(stepInterval)
       clearTimeout(timeout)
     }
   }, [])
 
   const generateMockResult = (): AnalysisResult => {
-    const income = parseInt(formData.netSalary || formData.monthlyIncome) || 50000
-    const loanAmount = parseInt(formData.loanAmount) || 2500000
-    const tenure = parseInt(formData.loanTenure) || 20
-    const existingEMI = parseInt(formData.existingEMI) || 0
+    const income = parseInt(formData.netSalary) || 50000
+    const existingEMI = parseInt(formData.currentEMI) || 0
     const cibilScore = formData.cibilScore || 750
     
     const maxEMI = income * 0.5 - existingEMI
     const baseROI = formData.caseType === "BT" ? 8.5 : 9.25
-    const maxLoan = Math.min(loanAmount * 1.2, maxEMI * 12 * tenure * 0.6)
-    const emi = (loanAmount * baseROI/100/12 * Math.pow(1 + baseROI/100/12, tenure * 12)) / (Math.pow(1 + baseROI/100/12, tenure * 12) - 1)
+    const tenure = 20
+    const maxLoan = maxEMI * 12 * tenure * 0.6
+    const emi = (maxLoan * baseROI/100/12 * Math.pow(1 + baseROI/100/12, tenure * 12)) / (Math.pow(1 + baseROI/100/12, tenure * 12) - 1)
     
     const currentFOIR = ((existingEMI + emi) / income) * 100
     
@@ -130,10 +149,9 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
     score += cibilScore >= 750 ? 15 : cibilScore >= 700 ? 10 : cibilScore >= 650 ? 5 : -5
     score += income > 100000 ? 10 : income > 50000 ? 5 : 0
     score += existingEMI === 0 ? 8 : existingEMI < income * 0.3 ? 3 : -8
-    score += formData.employmentType === "Salaried" ? 5 : 0
-    score += parseInt(formData.yearsOfExperience) > 5 ? 4 : 0
     score += formData.pfDeducted ? 3 : 0
     score += formData.tdsDeducted ? 2 : 0
+    score += formData.officialMailAvailable ? 2 : 0
     score -= formData.bounceLatestMonth ? 15 : 0
     score -= formData.overduesPending ? 12 : 0
     score -= formData.settlementWriteOff ? 20 : 0
@@ -163,14 +181,6 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
         reason: score >= 60 ? "Employment profile suitable for ICICI products" : "Income stability concerns"
       },
       {
-        name: "SBI",
-        eligible: score >= 55,
-        probability: Math.min(88, score - 2),
-        suggestedROI: baseROI + 0.15,
-        maxAmount: maxLoan * 0.95,
-        reason: score >= 55 ? "Government bank with flexible criteria" : "Documentation requirements not met"
-      },
-      {
         name: "Axis Bank",
         eligible: score >= 62,
         probability: Math.min(85, score - 5),
@@ -179,30 +189,46 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
         reason: score >= 62 ? "Profile matches Axis premium segment" : "FOIR exceeds bank limits"
       },
       {
-        name: "Kotak Mahindra",
-        eligible: score >= 70,
-        probability: Math.min(82, score - 8),
-        suggestedROI: baseROI - 0.1,
-        maxAmount: maxLoan * 1.05,
-        reason: score >= 70 ? "Excellent match for Kotak digital lending" : "Employment type not preferred"
+        name: "Tata Capital",
+        eligible: score >= 55,
+        probability: Math.min(80, score - 8),
+        suggestedROI: baseROI + 0.25,
+        maxAmount: maxLoan * 0.85,
+        reason: score >= 55 ? "Good fit for Tata Capital personal loans" : "Additional documentation required"
       },
     ]
 
     const policyReferences: PolicyReference[] = [
       { id: "1", name: "HDFC Personal Loan Policy v2", bank: "HDFC", version: "2.0", relevanceScore: 95 },
       { id: "2", name: "ICICI BT Guideline Jan 2025", bank: "ICICI", version: "1.5", relevanceScore: 88 },
-      { id: "3", name: "SBI Income Assessment Criteria", bank: "SBI", version: "3.0", relevanceScore: 82 },
+      { id: "3", name: "Axis Income Assessment Criteria", bank: "Axis", version: "3.0", relevanceScore: 82 },
       { id: "4", name: "RBI FOIR Guidelines 2024", bank: "RBI", version: "1.0", relevanceScore: 78 },
     ]
 
     const reasoningSteps = [
       `Analyzed applicant CIBIL score of ${cibilScore} against bank minimum requirements (650-750 range)`,
       `Calculated FOIR at ${currentFOIR.toFixed(1)}% against maximum allowed 50-60%`,
-      `Verified employment stability: ${formData.employmentType} with ${formData.yearsOfExperience || 0} years experience`,
-      `Assessed company profile: ${formData.companyType || "N/A"} with ${formData.companyAge || 0} years in operation`,
+      `Verified employment stability: ${formData.companyType || "N/A"} with ${formData.companyAge || 0} years tenure`,
+      `Assessed salary credit type: ${formData.salaryCreditType || "N/A"} - ${formData.salaryCreditType === "Cash" ? "Limited options" : "Preferred by lenders"}`,
       `Cross-referenced with ${policyReferences.length} active bank policy documents`,
       `Applied risk weightage for ${formData.caseType === "BT" ? "Balance Transfer" : "Fresh"} loan type`,
       `Generated bank-wise eligibility based on individual lender criteria`,
+    ]
+
+    const underwritingNotes = [
+      `Net monthly income of INR ${income.toLocaleString()} supports loan eligibility`,
+      formData.pfDeducted ? "PF deduction confirms formal employment - positive indicator" : "No PF deduction - may limit some lender options",
+      formData.tdsDeducted ? "TDS deduction validates income authenticity" : "No TDS - additional income proof may be required",
+      formData.officialMailAvailable ? "Official email available for verification" : "No official email - manual verification needed",
+      `Credit enquiry count of ${formData.enquiriesLast3Months} is ${formData.enquiriesLast3Months <= 2 ? "within acceptable limits" : "higher than preferred"}`,
+    ]
+
+    const keyObservations = [
+      `Applicant ${formData.fullName || "N/A"}, Age ${formData.age || "N/A"} from ${formData.location || "N/A"}`,
+      `Employment: ${formData.companyType || "N/A"} for ${formData.companyAge || 0} years`,
+      `Monthly Income: INR ${income.toLocaleString()} (${formData.salaryCreditType || "N/A"})`,
+      `CIBIL Score: ${cibilScore} - ${cibilScore >= 750 ? "Excellent" : cibilScore >= 700 ? "Good" : cibilScore >= 650 ? "Fair" : "Below threshold"}`,
+      `Debt Service: FOIR ${currentFOIR.toFixed(1)}% - ${currentFOIR <= 40 ? "Healthy" : currentFOIR <= 50 ? "Acceptable" : "High"}`,
     ]
 
     const rejectionReasons = score < 50 ? [
@@ -238,7 +264,7 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           name: "Income Stability",
           score: income > 100000 ? 92 : income > 75000 ? 82 : income > 50000 ? 70 : 55,
           impact: income > 75000 ? "positive" : income > 50000 ? "neutral" : "negative",
-          detail: `Net salary of ₹${income.toLocaleString()} with ${formData.salaryCreditType || "N/A"} credit type`
+          detail: `Net salary of INR ${income.toLocaleString()} with ${formData.salaryCreditType || "N/A"} credit type`
         },
         {
           name: "FOIR Assessment",
@@ -248,10 +274,9 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
         },
         {
           name: "Employment Profile",
-          score: formData.employmentType === "Salaried" && formData.pfDeducted ? 90 : 
-                 formData.employmentType === "Salaried" ? 80 : 65,
-          impact: formData.employmentType === "Salaried" ? "positive" : "neutral",
-          detail: `${formData.employmentType || "N/A"} at ${formData.companyName || "N/A"} (${formData.companyType || "N/A"})`
+          score: formData.pfDeducted && formData.tdsDeducted ? 90 : formData.pfDeducted || formData.tdsDeducted ? 75 : 60,
+          impact: formData.pfDeducted ? "positive" : "neutral",
+          detail: `${formData.companyType || "N/A"} with ${formData.companyAge || 0} years tenure`
         },
         {
           name: "Credit History",
@@ -274,14 +299,14 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
       ],
       suggestions: [
         formData.caseType === "BT" 
-          ? `Balance transfer can save approximately ₹${Math.round((parseFloat(formData.existingLoans?.[0]?.currentROI || "10") - baseROI) * loanAmount / 100).toLocaleString()} over loan tenure`
+          ? `Balance transfer can potentially save on interest with lower ROI from recommended lenders`
           : "Consider adding a co-applicant to increase loan eligibility by up to 40%",
         formData.pfDeducted 
           ? "PF deduction strengthens your profile for government bank products"
           : "Getting PF documentation can improve approval chances",
-        "Opt for home loan insurance to get 0.1% reduction in interest rate",
-        tenure > 15 ? "Shorter tenure of 15 years can reduce total interest by 30%" : "Current tenure is optimal for your income profile",
-        currentFOIR > 45 ? "Consider closing smaller loans to improve FOIR ratio" : "Maintain 6 months EMI as emergency fund before disbursement"
+        "Opt for loan insurance to get 0.1% reduction in interest rate",
+        "Maintain 6 months EMI as emergency fund before disbursement",
+        currentFOIR > 45 ? "Consider closing smaller loans to improve FOIR ratio" : "Current debt levels are manageable"
       ],
       risks: [
         ...existingEMI > income * 0.3 
@@ -291,14 +316,16 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           ? ["Multiple recent enquiries may indicate credit-seeking behavior"] 
           : [],
         "Market interest rate fluctuations may affect floating rate loans",
-        ...formData.employmentStability === "Low" 
-          ? ["Employment stability concerns may require additional documentation"] 
+        ...formData.existingHomeLoan 
+          ? ["Existing home loan impacts total debt capacity"] 
           : [],
       ],
       rejectionReasons,
       eligibleBanks: banks,
       policyReferences,
-      reasoningSteps
+      reasoningSteps,
+      underwritingNotes,
+      keyObservations
     }
   }
 
@@ -373,13 +400,27 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {progress < 20 && "Loading bank policy documents..."}
-                  {progress >= 20 && progress < 40 && "Analyzing CIBIL and credit history..."}
-                  {progress >= 40 && progress < 60 && "Calculating FOIR and debt ratios..."}
-                  {progress >= 60 && progress < 80 && "Cross-referencing with bank guidelines..."}
-                  {progress >= 80 && "Generating personalized recommendations..."}
+                <p className="text-sm text-primary font-medium h-6">
+                  {processingSteps[currentProcessingStep]}
                 </p>
+              </div>
+
+              {/* Processing Steps List */}
+              <div className="space-y-2 text-left">
+                {processingSteps.map((step, idx) => (
+                  <div key={idx} className={`flex items-center gap-2 text-sm ${
+                    idx <= currentProcessingStep ? "text-foreground" : "text-muted-foreground"
+                  }`}>
+                    {idx < currentProcessingStep ? (
+                      <Check className="w-4 h-4 text-primary" />
+                    ) : idx === currentProcessingStep ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border border-border" />
+                    )}
+                    <span>{step}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -405,7 +446,7 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           Back to Form
         </button>
 
-        {/* Hero Section */}
+        {/* Hero Section - Eligibility Score */}
         <Card className={`mb-6 ${style.bg} border ${style.border}`}>
           <CardContent className="py-8">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
@@ -438,8 +479,8 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           </CardContent>
         </Card>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <Card className="bg-card border-border">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
@@ -447,9 +488,9 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
                   <IndianRupee className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Max Loan</p>
+                  <p className="text-xs text-muted-foreground">Max Eligible Amount</p>
                   <p className="text-lg font-semibold text-foreground">
-                    ₹{(result.maxLoanAmount / 100000).toFixed(1)}L
+                    INR {(result.maxLoanAmount / 100000).toFixed(1)}L
                   </p>
                 </div>
               </div>
@@ -463,9 +504,41 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
                   <Percent className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">ROI Range</p>
+                  <p className="text-xs text-muted-foreground">Estimated ROI</p>
                   <p className="text-lg font-semibold text-foreground">
-                    {(result.suggestedROI - 0.5).toFixed(1)}-{(result.suggestedROI + 0.5).toFixed(1)}%
+                    {(result.suggestedROI - 0.5).toFixed(1)} - {(result.suggestedROI + 0.5).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Approval Probability</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {Math.round(result.eligibilityScore * 0.95)}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Shield className={`w-5 h-5 ${getRiskColor(result.riskLevel).split(" ")[0]}`} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Risk Level</p>
+                  <p className={`text-lg font-semibold ${getRiskColor(result.riskLevel).split(" ")[0]}`}>
+                    {result.riskLevel}
                   </p>
                 </div>
               </div>
@@ -481,7 +554,7 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
                 <div>
                   <p className="text-xs text-muted-foreground">Tenure</p>
                   <p className="text-lg font-semibold text-foreground">
-                    {result.suggestedTenure} Yrs
+                    {result.suggestedTenure} Years
                   </p>
                 </div>
               </div>
@@ -492,53 +565,12 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-primary" />
+                  <Activity className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Monthly EMI</p>
+                  <p className="text-xs text-muted-foreground">Est. EMI</p>
                   <p className="text-lg font-semibold text-foreground">
-                    ₹{result.monthlyEMI.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  result.foirAnalysis.status === "good" ? "bg-primary/10" :
-                  result.foirAnalysis.status === "warning" ? "bg-warning/10" : "bg-destructive/10"
-                }`}>
-                  <BarChart3 className={`w-5 h-5 ${
-                    result.foirAnalysis.status === "good" ? "text-primary" :
-                    result.foirAnalysis.status === "warning" ? "text-warning" : "text-destructive"
-                  }`} />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">FOIR</p>
-                  <p className={`text-lg font-semibold ${
-                    result.foirAnalysis.status === "good" ? "text-primary" :
-                    result.foirAnalysis.status === "warning" ? "text-warning" : "text-destructive"
-                  }`}>
-                    {result.foirAnalysis.currentFOIR}%
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Eligible Banks</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {result.eligibleBanks.filter(b => b.eligible).length}/{result.eligibleBanks.length}
+                    INR {result.monthlyEMI.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -546,338 +578,357 @@ export function AIRecommendation({ formData, onBack, onNewApplication }: AIRecom
           </Card>
         </div>
 
-        {/* Rejection Reasons (if applicable) */}
-        {result.rejectionReasons.length > 0 && (
-          <Card className="mb-6 bg-destructive/10 border-destructive/20">
-            <CardHeader>
-              <CardTitle className="text-lg text-destructive flex items-center gap-2">
-                <X className="w-5 h-5" />
-                Rejection Reasons
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {result.rejectionReasons.map((reason, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <X className="w-3 h-3 text-destructive" />
-                    </div>
-                    <span className="text-sm text-foreground">{reason}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recommended Bank */}
-        {recommendedBank && (
-          <Card className="mb-6 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-            <CardContent className="py-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center">
-                    <Award className="w-7 h-7 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground text-lg">Recommended: {recommendedBank.name}</h3>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary text-primary-foreground">
-                        Best Match
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {recommendedBank.probability}% approval probability at {recommendedBank.suggestedROI}% ROI
-                    </p>
-                  </div>
-                </div>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Apply with {recommendedBank.name}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bank Eligibility */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-primary" />
-                Bank-wise Eligibility
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Approval probability across different lenders
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {result.eligibleBanks.map((bank, index) => (
-                <div 
-                  key={index} 
-                  className={`p-4 rounded-xl border transition-all ${
-                    bank.eligible 
-                      ? bank.isRecommended 
-                        ? "bg-primary/5 border-primary/30" 
-                        : "bg-card border-border"
-                      : "bg-secondary/30 border-border opacity-60"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{bank.name}</span>
-                      {bank.isRecommended && bank.eligible && (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">
-                          Recommended
-                        </span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Lender Recommendations */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Recommended Lenders */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  Recommended Lenders
+                </CardTitle>
+                <CardDescription>
+                  Bank-wise eligibility based on underwriting rules
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.eligibleBanks.map((bank) => (
+                    <div
+                      key={bank.name}
+                      className={`p-4 rounded-xl border transition-all ${
+                        bank.isRecommended && bank.eligible
+                          ? "bg-primary/10 border-primary"
+                          : bank.eligible
+                          ? "bg-secondary/30 border-border"
+                          : "bg-muted/50 border-border opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            bank.eligible ? "bg-primary/20" : "bg-muted"
+                          }`}>
+                            <Building2 className={`w-5 h-5 ${bank.eligible ? "text-primary" : "text-muted-foreground"}`} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-foreground">{bank.name}</h4>
+                              {bank.isRecommended && bank.eligible && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary text-primary-foreground">
+                                  Best Match
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{bank.reason}</p>
+                          </div>
+                        </div>
+                        {bank.eligible ? (
+                          <Check className="w-5 h-5 text-primary" />
+                        ) : (
+                          <X className="w-5 h-5 text-destructive" />
+                        )}
+                      </div>
+                      
+                      {bank.eligible && (
+                        <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t border-border">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Probability</p>
+                            <p className="font-semibold text-foreground">{bank.probability}%</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">ROI</p>
+                            <p className="font-semibold text-foreground">{bank.suggestedROI.toFixed(2)}%</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Max Amount</p>
+                            <p className="font-semibold text-foreground">INR {(bank.maxAmount / 100000).toFixed(1)}L</p>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <span className={`text-sm font-semibold ${
-                      bank.eligible ? "text-primary" : "text-muted-foreground"
-                    }`}>
-                      {bank.eligible ? `${bank.probability}%` : "Not Eligible"}
-                    </span>
-                  </div>
-                  {bank.eligible && (
-                    <>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
-                        <div 
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{ width: `${bank.probability}%` }}
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Risk Analysis */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  AI Risk Analysis
+                </CardTitle>
+                <CardDescription>
+                  Factor-wise scoring and impact assessment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {result.factors.map((factor) => (
+                    <div key={factor.name} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{factor.name}</span>
+                          {factor.impact === "positive" && (
+                            <TrendingUp className="w-4 h-4 text-primary" />
+                          )}
+                          {factor.impact === "negative" && (
+                            <TrendingDown className="w-4 h-4 text-destructive" />
+                          )}
+                        </div>
+                        <span className={`text-sm font-semibold ${
+                          factor.score >= 80 ? "text-primary" :
+                          factor.score >= 60 ? "text-warning" : "text-destructive"
+                        }`}>
+                          {factor.score}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${
+                            factor.score >= 80 ? "bg-primary" :
+                            factor.score >= 60 ? "bg-warning" : "bg-destructive"
+                          }`}
+                          style={{ width: `${factor.score}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>ROI: {bank.suggestedROI}%</span>
-                        <span>Max: ₹{(bank.maxAmount / 100000).toFixed(1)}L</span>
-                      </div>
-                    </>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-2">{bank.reason}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Analysis Factors */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                AI Analysis Factors
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Key factors influencing the eligibility decision
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {result.factors.map((factor, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {factor.impact === "positive" && <TrendingUp className="w-4 h-4 text-primary" />}
-                      {factor.impact === "negative" && <TrendingDown className="w-4 h-4 text-destructive" />}
-                      {factor.impact === "neutral" && <span className="w-4 h-4 rounded-full bg-muted-foreground/30" />}
-                      <span className="text-sm font-medium text-foreground">{factor.name}</span>
+                      <p className="text-xs text-muted-foreground">{factor.detail}</p>
                     </div>
-                    <span className={`text-sm font-semibold ${
-                      factor.score >= 80 ? "text-primary" : 
-                      factor.score >= 60 ? "text-warning" : "text-destructive"
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Underwriting Notes */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Underwriting Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.underwritingNotes.map((note, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Summary & Observations */}
+          <div className="space-y-6">
+            {/* FOIR Analysis */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Gauge className="w-5 h-5 text-primary" />
+                  FOIR Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <span className={`text-4xl font-bold ${
+                      result.foirAnalysis.status === "good" ? "text-primary" :
+                      result.foirAnalysis.status === "warning" ? "text-warning" : "text-destructive"
                     }`}>
-                      {factor.score}%
+                      {result.foirAnalysis.currentFOIR}%
                     </span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Current FOIR (Max: {result.foirAnalysis.maxAllowedFOIR}%)
+                    </p>
                   </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all ${
-                        factor.score >= 80 ? "bg-primary" : 
-                        factor.score >= 60 ? "bg-warning" : "bg-destructive"
+                  <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${
+                        result.foirAnalysis.status === "good" ? "bg-primary" :
+                        result.foirAnalysis.status === "warning" ? "bg-warning" : "bg-destructive"
                       }`}
-                      style={{ width: `${factor.score}%` }}
+                      style={{ width: `${Math.min(result.foirAnalysis.currentFOIR, 100)}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">{factor.detail}</p>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0%</span>
+                    <span>40% (Good)</span>
+                    <span>50% (Max)</span>
+                  </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
 
-        {/* RAG Transparency Section */}
-        <Card className="mt-6 bg-card border-border">
-          <CardHeader 
-            className="cursor-pointer"
-            onClick={() => setShowPolicyDetails(!showPolicyDetails)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  Guidelines Used in Analysis
+            {/* Key Observations */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-primary" />
+                  Key Observations
                 </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Policy documents referenced by AI for this recommendation
-                </CardDescription>
-              </div>
-              {showPolicyDetails ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-          </CardHeader>
-          {showPolicyDetails && (
-            <CardContent>
-              <div className="space-y-3">
-                {result.policyReferences.map((policy) => (
-                  <div 
-                    key={policy.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{policy.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {policy.bank} • v{policy.version}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-primary">{policy.relevanceScore}%</p>
-                      <p className="text-xs text-muted-foreground">Relevance</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          )}
-        </Card>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.keyObservations.map((obs, idx) => (
+                    <li key={idx} className="text-sm text-muted-foreground">
+                      {obs}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
 
-        {/* AI Reasoning Steps */}
-        <Card className="mt-6 bg-card border-border">
-          <CardHeader 
-            className="cursor-pointer"
-            onClick={() => setShowReasoningDetails(!showReasoningDetails)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-primary" />
-                  AI Reasoning Process
+            {/* Recommendation Summary */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  Recommendations
                 </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Step-by-step explanation of the analysis
-                </CardDescription>
-              </div>
-              {showReasoningDetails ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-          </CardHeader>
-          {showReasoningDetails && (
-            <CardContent>
-              <div className="space-y-3">
-                {result.reasoningSteps.map((step, index) => (
-                  <div 
-                    key={index}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30"
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.suggestions.slice(0, 4).map((suggestion, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      {suggestion}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Risk Warnings */}
+            {result.risks.length > 0 && (
+              <Card className="bg-destructive/5 border-destructive/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="w-5 h-5" />
+                    Risk Factors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {result.risks.map((risk, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                        {risk}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Policy References */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Policy References
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPolicyDetails(!showPolicyDetails)}
+                    className="text-muted-foreground"
                   >
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-semibold text-primary">{index + 1}</span>
-                    </div>
-                    <p className="text-sm text-foreground">{step}</p>
+                    {showPolicyDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </CardHeader>
+              {showPolicyDetails && (
+                <CardContent>
+                  <div className="space-y-2">
+                    {result.policyReferences.map((policy) => (
+                      <div key={policy.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{policy.name}</p>
+                          <p className="text-xs text-muted-foreground">{policy.bank} • v{policy.version}</p>
+                        </div>
+                        <span className="text-xs text-primary">{policy.relevanceScore}% match</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Suggestions & Risks */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                {formData.caseType === "BT" ? (
-                  <RefreshCw className="w-5 h-5 text-primary" />
-                ) : (
-                  <Target className="w-5 h-5 text-primary" />
-                )}
-                {formData.caseType === "BT" ? "Balance Transfer Benefits" : "Smart Suggestions"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {result.suggestions.map((suggestion, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-primary" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">{suggestion}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-warning" />
-                Risk Factors
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {result.risks.map((risk, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <AlertTriangle className="w-3 h-3 text-warning" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">{risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                </CardContent>
+              )}
+            </Card>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <Card className="mt-6 bg-card border-border">
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 mt-8">
+          <Button
+            variant="outline"
+            className="flex-1 border-border text-foreground hover:bg-secondary"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Report
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 border-border text-foreground hover:bg-secondary"
+          >
+            <Share2 className="w-4 h-4 mr-2" />
+            Share Analysis
+          </Button>
+          <Button
+            onClick={onNewApplication}
+            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            New Application
+          </Button>
+        </div>
+
+        {/* AI Assistant Floating Button */}
+        <button
+          onClick={() => setShowAIAssistant(!showAIAssistant)}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all"
+        >
+          <MessageSquare className="w-6 h-6" />
+        </button>
+
+        {/* AI Assistant Panel */}
+        {showAIAssistant && (
+          <div className="fixed bottom-24 right-6 w-80 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+            <div className="p-4 bg-primary text-primary-foreground">
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="border-border text-foreground hover:bg-secondary">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Report
-                </Button>
-                <Button variant="outline" className="border-border text-foreground hover:bg-secondary">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share
-                </Button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={onNewApplication}
-                  className="border-border text-foreground hover:bg-secondary"
-                >
-                  New Application
-                </Button>
-                {result.recommendation !== "rejected" && (
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    Proceed to Documentation
-                  </Button>
-                )}
+                <Brain className="w-5 h-5" />
+                <span className="font-medium">AI Assistant</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <div className="p-4 h-64 overflow-y-auto space-y-3">
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-sm text-foreground">
+                  Based on your profile, I recommend focusing on HDFC Bank as they offer the best ROI for your income bracket.
+                </p>
+              </div>
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-sm text-foreground">
+                  Your CIBIL score of {formData.cibilScore} is {formData.cibilScore >= 750 ? "excellent" : "good"}, which qualifies you for premium loan products.
+                </p>
+              </div>
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-sm text-foreground">
+                  Want me to explain any specific aspect of this analysis?
+                </p>
+              </div>
+            </div>
+            <div className="p-3 border-t border-border">
+              <input
+                type="text"
+                placeholder="Ask a question..."
+                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
