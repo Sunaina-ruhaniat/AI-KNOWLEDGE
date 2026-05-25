@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -21,10 +20,11 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  Wallet,
   Sparkles,
-  FileText,
-  Save
+  Send,
+  TrendingUp,
+  Target,
+  Building
 } from "lucide-react"
 
 interface LoanFormProps {
@@ -66,19 +66,9 @@ export interface LoanFormData {
   // Step 3: Employment / Company Details
   companyType: string
   companyAge: string
-  
-  // Step 4: Salary Credit Details
   salaryCreditType: string
-  netSalary: string
-  fixedSalaryComponent: string
-  incentiveAmount: string
-  incentiveFrequency: string
-  pfDeducted: boolean
-  tdsDeducted: boolean
-  officialMailAvailable: boolean
-  existingHomeLoan: boolean
   
-  // Step 5: CIBIL / Credit Assessment
+  // Step 4: CIBIL / Credit Profile
   cibilScore: number
   enquiriesLast3Months: number
   bounceLatestMonth: boolean
@@ -102,14 +92,6 @@ const initialFormData: LoanFormData = {
   companyType: "",
   companyAge: "",
   salaryCreditType: "",
-  netSalary: "",
-  fixedSalaryComponent: "",
-  incentiveAmount: "",
-  incentiveFrequency: "",
-  pfDeducted: false,
-  tdsDeducted: false,
-  officialMailAvailable: false,
-  existingHomeLoan: false,
   cibilScore: 750,
   enquiriesLast3Months: 0,
   bounceLatestMonth: false,
@@ -123,9 +105,9 @@ const steps = [
   { id: 1, title: "Personal Details", icon: User },
   { id: 2, title: "Loan Details", icon: CreditCard },
   { id: 3, title: "Employment", icon: Briefcase },
-  { id: 4, title: "Salary Details", icon: Wallet },
-  { id: 5, title: "Credit Assessment", icon: Shield },
-  { id: 6, title: "Review & Submit", icon: FileText },
+  { id: 4, title: "Credit Profile", icon: Shield },
+  { id: 5, title: "Eligibility Engine", icon: Target },
+  { id: 6, title: "Submit", icon: Send },
 ]
 
 const companyTypes = [
@@ -141,7 +123,6 @@ const companyTypes = [
 ]
 
 const salaryCreditTypes = ["IMPS", "RTGS", "NEFT", "UPI", "Cash"]
-const incentiveFrequencies = ["Monthly", "Quarterly", "Yearly"]
 const freshLoanTypes = ["Term Loan", "OD (Overdraft)"]
 const btLoanTypes = ["OD", "Credit Card", "App Loan"]
 const lenders = ["HDFC Bank", "ICICI Bank", "SBI", "Axis Bank", "Kotak Mahindra", "Bajaj Finance", "IDFC First", "Yes Bank", "PNB", "Tata Capital", "Other"]
@@ -149,6 +130,14 @@ const lenders = ["HDFC Bank", "ICICI Bank", "SBI", "Axis Bank", "Kotak Mahindra"
 export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<LoanFormData>(initialFormData)
+  const [isCalculatingEligibility, setIsCalculatingEligibility] = useState(false)
+  const [eligibilityResult, setEligibilityResult] = useState<{
+    riskLevel: string
+    riskScore: number
+    maxEligibleAmount: number
+    estimatedROI: { min: number; max: number }
+    recommendedLenders: { name: string; matchScore: number; maxAmount: number; roi: string }[]
+  } | null>(null)
 
   const updateFormData = <K extends keyof LoanFormData>(field: K, value: LoanFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -211,6 +200,43 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
     if (score >= 650) return { label: "Fair", color: "text-warning", bg: "bg-warning/20" }
     if (score >= 550) return { label: "Poor", color: "text-warning", bg: "bg-warning/20" }
     return { label: "Very Poor", color: "text-destructive", bg: "bg-destructive/20" }
+  }
+
+  // Calculate eligibility when entering Step 5
+  const calculateEligibility = () => {
+    setIsCalculatingEligibility(true)
+    
+    // Simulate AI calculation
+    setTimeout(() => {
+      // Mock eligibility calculation based on form data
+      const cibilFactor = formData.cibilScore >= 750 ? 1 : formData.cibilScore >= 700 ? 0.85 : formData.cibilScore >= 650 ? 0.7 : 0.5
+      const negativeFactors = [
+        formData.bounceLatestMonth,
+        formData.overduesPending,
+        formData.pastDelayedPayments,
+        formData.settlementWriteOff
+      ].filter(Boolean).length
+      
+      const riskScore = Math.max(20, Math.min(95, Math.round(cibilFactor * 100 - negativeFactors * 15)))
+      const riskLevel = riskScore >= 75 ? "Low" : riskScore >= 50 ? "Medium" : "High"
+      
+      const maxEligibleAmount = Math.round(riskScore * 50000)
+      const baseROI = riskScore >= 75 ? 8.5 : riskScore >= 50 ? 10.5 : 13
+      
+      setEligibilityResult({
+        riskLevel,
+        riskScore,
+        maxEligibleAmount,
+        estimatedROI: { min: baseROI, max: baseROI + 2 },
+        recommendedLenders: [
+          { name: "HDFC Bank", matchScore: 92, maxAmount: maxEligibleAmount, roi: `${baseROI}% - ${baseROI + 1}%` },
+          { name: "ICICI Bank", matchScore: 88, maxAmount: Math.round(maxEligibleAmount * 0.95), roi: `${baseROI + 0.25}% - ${baseROI + 1.25}%` },
+          { name: "Axis Bank", matchScore: 85, maxAmount: Math.round(maxEligibleAmount * 0.9), roi: `${baseROI + 0.5}% - ${baseROI + 1.5}%` },
+          { name: "Tata Capital", matchScore: 82, maxAmount: Math.round(maxEligibleAmount * 0.85), roi: `${baseROI + 0.75}% - ${baseROI + 1.75}%` },
+        ]
+      })
+      setIsCalculatingEligibility(false)
+    }, 2000)
   }
 
   const renderStepContent = () => {
@@ -298,7 +324,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-foreground">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-foreground">Name</Label>
                   <Input
                     id="fullName"
                     placeholder="Enter full name"
@@ -320,27 +346,25 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                   />
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="location" className="text-foreground">Location / Pincode</Label>
-                  <Input
-                    id="location"
-                    placeholder="City / Area"
-                    value={formData.location}
-                    onChange={(e) => updateFormData("location", e.target.value)}
-                    className="bg-input border-border text-foreground"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="pincode" className="text-foreground">Pincode</Label>
-                  <Input
-                    id="pincode"
-                    placeholder="Enter pincode"
-                    value={formData.pincode}
-                    onChange={(e) => updateFormData("pincode", e.target.value)}
-                    className="bg-input border-border text-foreground"
-                    maxLength={6}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      id="location"
+                      placeholder="City / Area"
+                      value={formData.location}
+                      onChange={(e) => updateFormData("location", e.target.value)}
+                      className="bg-input border-border text-foreground"
+                    />
+                    <Input
+                      id="pincode"
+                      placeholder="Pincode"
+                      value={formData.pincode}
+                      onChange={(e) => updateFormData("pincode", e.target.value)}
+                      className="bg-input border-border text-foreground"
+                      maxLength={6}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -366,7 +390,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                 <CardContent className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="expectedLoanType" className="text-foreground">Expected Type of Loan</Label>
+                      <Label htmlFor="expectedLoanType" className="text-foreground">Expected Loan Type</Label>
                       <select
                         id="expectedLoanType"
                         value={formData.expectedLoanType}
@@ -381,7 +405,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="expectedROI" className="text-foreground">Expected Rate of Interest (%)</Label>
+                      <Label htmlFor="expectedROI" className="text-foreground">Expected Interest Rate (%)</Label>
                       <Input
                         id="expectedROI"
                         type="number"
@@ -494,7 +518,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                           <CardContent className="pt-0 pb-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
                               <div className="space-y-2">
-                                <Label className="text-foreground">Type of Loan</Label>
+                                <Label className="text-foreground">Existing Loan Type</Label>
                                 <select
                                   value={loan.loanType}
                                   onChange={(e) => updateExistingLoan(loan.id, "loanType", e.target.value)}
@@ -508,7 +532,18 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                               </div>
                               
                               <div className="space-y-2">
-                                <Label className="text-foreground">Current Bank Name</Label>
+                                <Label className="text-foreground">Outstanding Amount (INR)</Label>
+                                <Input
+                                  type="number"
+                                  placeholder="Enter amount"
+                                  value={loan.outstandingAmount}
+                                  onChange={(e) => updateExistingLoan(loan.id, "outstandingAmount", e.target.value)}
+                                  className="bg-input border-border text-foreground"
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label className="text-foreground">Bank Name</Label>
                                 <select
                                   value={loan.lender}
                                   onChange={(e) => updateExistingLoan(loan.id, "lender", e.target.value)}
@@ -522,18 +557,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                               </div>
                               
                               <div className="space-y-2">
-                                <Label className="text-foreground">Loan Amount Outstanding (INR)</Label>
-                                <Input
-                                  type="number"
-                                  placeholder="Enter amount"
-                                  value={loan.outstandingAmount}
-                                  onChange={(e) => updateExistingLoan(loan.id, "outstandingAmount", e.target.value)}
-                                  className="bg-input border-border text-foreground"
-                                />
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label className="text-foreground">Current Rate of Interest (%)</Label>
+                                <Label className="text-foreground">Interest Rate (%)</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
@@ -566,17 +590,6 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                               </div>
                               
                               <div className="space-y-2">
-                                <Label className="text-foreground">Current EMI (INR)</Label>
-                                <Input
-                                  type="number"
-                                  placeholder="Enter EMI"
-                                  value={loan.currentEMI}
-                                  onChange={(e) => updateExistingLoan(loan.id, "currentEMI", e.target.value)}
-                                  className="bg-input border-border text-foreground"
-                                />
-                              </div>
-                              
-                              <div className="space-y-2">
                                 <Label className="text-foreground">Foreclosure Available?</Label>
                                 <div className="flex gap-4 mt-1">
                                   <button
@@ -604,8 +617,19 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                                 </div>
                               </div>
                               
+                              <div className="space-y-2">
+                                <Label className="text-foreground">Current EMI (INR)</Label>
+                                <Input
+                                  type="number"
+                                  placeholder="Enter EMI"
+                                  value={loan.currentEMI}
+                                  onChange={(e) => updateExistingLoan(loan.id, "currentEMI", e.target.value)}
+                                  className="bg-input border-border text-foreground"
+                                />
+                              </div>
+                              
                               <div className="space-y-2 md:col-span-2">
-                                <Label className="text-foreground">Any EMI Bounce in this Loan?</Label>
+                                <Label className="text-foreground">EMI Bounce</Label>
                                 <div className="flex gap-4 mt-1">
                                   <button
                                     type="button"
@@ -659,15 +683,15 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
             <div>
               <h3 className="text-lg font-medium text-foreground mb-2">Employment / Company Details</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Provide employment information
+                Provide employment and salary information
               </p>
             </div>
             
             <Card className="bg-secondary/30 border-border">
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="companyType" className="text-foreground">Type of Company</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="companyType" className="text-foreground">Company Type</Label>
                     <select
                       id="companyType"
                       value={formData.companyType}
@@ -681,8 +705,8 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                     </select>
                   </div>
                   
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="companyAge" className="text-foreground">Age of Company / Employment Tenure (Years)</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyAge" className="text-foreground">Company Age / Tenure (Years)</Label>
                     <Input
                       id="companyAge"
                       type="number"
@@ -692,27 +716,8 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                       className="bg-input border-border text-foreground"
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-      
-      // Step 4: Salary Details
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-2">Salary Details</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Provide salary and income details
-              </p>
-            </div>
-            
-            <Card className="bg-secondary/30 border-border">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="salaryCreditType" className="text-foreground">Salary Credit Type</Label>
                     <select
                       id="salaryCreditType"
@@ -725,125 +730,29 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                         <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="netSalary" className="text-foreground">Net Salary Credited in Bank (INR)</Label>
-                    <Input
-                      id="netSalary"
-                      type="number"
-                      placeholder="Enter net salary"
-                      value={formData.netSalary}
-                      onChange={(e) => updateFormData("netSalary", e.target.value)}
-                      className="bg-input border-border text-foreground"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="fixedSalaryComponent" className="text-foreground">Fixed Salary Component (INR)</Label>
-                    <Input
-                      id="fixedSalaryComponent"
-                      type="number"
-                      placeholder="Enter fixed salary"
-                      value={formData.fixedSalaryComponent}
-                      onChange={(e) => updateFormData("fixedSalaryComponent", e.target.value)}
-                      className="bg-input border-border text-foreground"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="incentiveAmount" className="text-foreground">Incentive Amount (INR)</Label>
-                    <Input
-                      id="incentiveAmount"
-                      type="number"
-                      placeholder="Enter incentive amount"
-                      value={formData.incentiveAmount}
-                      onChange={(e) => updateFormData("incentiveAmount", e.target.value)}
-                      className="bg-input border-border text-foreground"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="incentiveFrequency" className="text-foreground">Incentive Frequency</Label>
-                    <select
-                      id="incentiveFrequency"
-                      value={formData.incentiveFrequency}
-                      onChange={(e) => updateFormData("incentiveFrequency", e.target.value)}
-                      className="w-full h-10 px-3 rounded-md bg-input border border-border text-foreground"
-                    >
-                      <option value="">Select frequency</option>
-                      {incentiveFrequencies.map(freq => (
-                        <option key={freq} value={freq}>{freq}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                {/* Toggle Section */}
-                <div className="mt-6 pt-6 border-t border-border">
-                  <h4 className="font-medium text-foreground mb-4">Additional Information</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-card border border-border">
-                      <div>
-                        <Label className="text-foreground">PF Deducted?</Label>
-                        <p className="text-xs text-muted-foreground">Is Provident Fund deducted from salary</p>
-                      </div>
-                      <Switch
-                        checked={formData.pfDeducted}
-                        onCheckedChange={(checked) => updateFormData("pfDeducted", checked)}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-card border border-border">
-                      <div>
-                        <Label className="text-foreground">TDS Deducted?</Label>
-                        <p className="text-xs text-muted-foreground">Is TDS deducted from salary</p>
-                      </div>
-                      <Switch
-                        checked={formData.tdsDeducted}
-                        onCheckedChange={(checked) => updateFormData("tdsDeducted", checked)}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-card border border-border">
-                      <div>
-                        <Label className="text-foreground">Official Mail ID Available?</Label>
-                        <p className="text-xs text-muted-foreground">Do you have an official email address</p>
-                      </div>
-                      <Switch
-                        checked={formData.officialMailAvailable}
-                        onCheckedChange={(checked) => updateFormData("officialMailAvailable", checked)}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-card border border-border">
-                      <div>
-                        <Label className="text-foreground">Any Existing Home Loan?</Label>
-                        <p className="text-xs text-muted-foreground">Do you have an existing home loan</p>
-                      </div>
-                      <Switch
-                        checked={formData.existingHomeLoan}
-                        onCheckedChange={(checked) => updateFormData("existingHomeLoan", checked)}
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      How is your salary credited to your bank account?
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            {/* Visual indicator for salary type */}
-            {formData.salaryCreditType && (
-              <div className="mt-6 p-4 rounded-xl bg-primary/10 border border-primary/20">
+            {/* Company Type Indicator */}
+            {formData.companyType && (
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-primary" />
+                    <Building className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">Salary Credit: {formData.salaryCreditType}</p>
+                    <p className="font-medium text-foreground">{formData.companyType}</p>
                     <p className="text-sm text-muted-foreground">
-                      {formData.salaryCreditType === "Cash" 
-                        ? "Cash salary may have limited lender options" 
-                        : "Digital transfer is preferred by most lenders"}
+                      {formData.companyType === "Govt Company" 
+                        ? "Government employees typically have better loan terms" 
+                        : formData.companyType === "Pvt Ltd"
+                        ? "Private limited companies are preferred by most lenders"
+                        : "Employment type noted for eligibility assessment"}
                     </p>
                   </div>
                 </div>
@@ -852,15 +761,15 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
           </div>
         )
       
-      // Step 5: CIBIL / Credit Assessment
-      case 5:
+      // Step 4: Credit Profile (CIBIL)
+      case 4:
         const cibilRisk = getCibilRiskLabel(formData.cibilScore)
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-foreground mb-2">Credit Profile / CIBIL</h3>
+              <h3 className="text-lg font-medium text-foreground mb-2">Credit Profile (CIBIL)</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Credit history and risk assessment details
+                Credit history and assessment details
               </p>
             </div>
             
@@ -885,7 +794,7 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                       max="900"
                       value={formData.cibilScore}
                       onChange={(e) => updateFormData("cibilScore", parseInt(e.target.value))}
-                      className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-primary"
+                      className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
                       <span>300</span>
@@ -895,113 +804,170 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
                       <span>900</span>
                     </div>
                   </div>
-                  
-                  {/* CIBIL Score Gauge Visualization */}
-                  <div className="mt-4 p-4 rounded-lg bg-card border border-border">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Credit Score Range</span>
-                      <span className={`text-sm font-medium ${cibilRisk.color}`}>{cibilRisk.label}</span>
-                    </div>
-                    <div className="h-3 rounded-full bg-secondary overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${
-                          formData.cibilScore >= 750 ? 'bg-primary' : 
-                          formData.cibilScore >= 650 ? 'bg-warning' : 'bg-destructive'
-                        }`}
-                        style={{ width: `${((formData.cibilScore - 300) / 600) * 100}%` }}
-                      />
-                    </div>
-                  </div>
                 </div>
                 
                 {/* Enquiries */}
                 <div className="space-y-2 mb-6">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-foreground">Number of Enquiries in Last 3 Months</Label>
-                    {formData.enquiriesLast3Months > 3 && (
-                      <span className="flex items-center gap-1 text-xs text-warning">
-                        <AlertTriangle className="w-3 h-3" />
-                        High enquiry count
-                      </span>
-                    )}
-                  </div>
+                  <Label htmlFor="enquiries" className="text-foreground">Enquiries in Last 3 Months</Label>
                   <Input
+                    id="enquiries"
                     type="number"
                     min="0"
+                    placeholder="0"
                     value={formData.enquiriesLast3Months}
                     onChange={(e) => updateFormData("enquiriesLast3Months", parseInt(e.target.value) || 0)}
                     className="bg-input border-border text-foreground"
                   />
+                  {formData.enquiriesLast3Months > 3 && (
+                    <p className="text-xs text-warning">High number of enquiries may impact eligibility</p>
+                  )}
                 </div>
                 
-                {/* Risk Toggles */}
+                {/* Credit Issues Grid */}
                 <div className="space-y-4">
-                  <Label className="text-foreground">Credit Risk Indicators</Label>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      { key: "bounceLatestMonth" as const, label: "Bounce in Latest Month?" },
-                      { key: "overduesPending" as const, label: "Any Overdue Pending?" },
-                      { key: "pastDelayedPayments" as const, label: "Past Delayed Payments?" },
-                      { key: "settlementWriteOff" as const, label: "Settlement / Write-off / Suit Filed?" },
-                    ].map(({ key, label }) => (
-                      <div key={key} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border">
-                        <span className="text-sm text-foreground">{label}</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateFormData(key, true)}
-                            className={`px-3 py-1 rounded text-sm transition-all ${
-                              formData[key]
-                                ? "bg-destructive text-destructive-foreground"
-                                : "bg-input border border-border text-foreground hover:border-destructive/50"
-                            }`}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateFormData(key, false)}
-                            className={`px-3 py-1 rounded text-sm transition-all ${
-                              !formData[key]
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-input border border-border text-foreground hover:border-primary/50"
-                            }`}
-                          >
-                            No
-                          </button>
-                        </div>
+                  <h4 className="font-medium text-foreground">Credit History Checks</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Bounce in Latest Month */}
+                    <div className="p-4 rounded-lg bg-card border border-border">
+                      <Label className="text-foreground block mb-3">Bounce in Latest Month</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("bounceLatestMonth", true)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            formData.bounceLatestMonth
+                              ? "bg-destructive text-destructive-foreground border-destructive"
+                              : "bg-input border-border text-foreground hover:border-destructive/50"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("bounceLatestMonth", false)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            !formData.bounceLatestMonth
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-input border-border text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          No
+                        </button>
                       </div>
-                    ))}
+                    </div>
+                    
+                    {/* Overdue Pending */}
+                    <div className="p-4 rounded-lg bg-card border border-border">
+                      <Label className="text-foreground block mb-3">Overdue Pending</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("overduesPending", true)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            formData.overduesPending
+                              ? "bg-destructive text-destructive-foreground border-destructive"
+                              : "bg-input border-border text-foreground hover:border-destructive/50"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("overduesPending", false)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            !formData.overduesPending
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-input border-border text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Past Delayed Payments */}
+                    <div className="p-4 rounded-lg bg-card border border-border">
+                      <Label className="text-foreground block mb-3">Past Delayed Payments</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("pastDelayedPayments", true)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            formData.pastDelayedPayments
+                              ? "bg-warning text-warning-foreground border-warning"
+                              : "bg-input border-border text-foreground hover:border-warning/50"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("pastDelayedPayments", false)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            !formData.pastDelayedPayments
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-input border-border text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Settlement/Write-off */}
+                    <div className="p-4 rounded-lg bg-card border border-border">
+                      <Label className="text-foreground block mb-3">Settlement / Write-off</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("settlementWriteOff", true)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            formData.settlementWriteOff
+                              ? "bg-destructive text-destructive-foreground border-destructive"
+                              : "bg-input border-border text-foreground hover:border-destructive/50"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateFormData("settlementWriteOff", false)}
+                          className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                            !formData.settlementWriteOff
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-input border-border text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                  
+                  {/* Settlement Date (conditional) */}
+                  {formData.settlementWriteOff && (
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="settlementDate" className="text-foreground">Settlement Date</Label>
+                      <Input
+                        id="settlementDate"
+                        type="date"
+                        value={formData.settlementDate}
+                        onChange={(e) => updateFormData("settlementDate", e.target.value)}
+                        className="bg-input border-border text-foreground"
+                      />
+                    </div>
+                  )}
                 </div>
-                
-                {/* Settlement Date - Only shown if Settlement = Yes */}
-                {formData.settlementWriteOff && (
-                  <div className="space-y-2 mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <Label htmlFor="settlementDate" className="text-foreground">Settlement Date</Label>
-                    <Input
-                      id="settlementDate"
-                      type="date"
-                      value={formData.settlementDate}
-                      onChange={(e) => updateFormData("settlementDate", e.target.value)}
-                      className="bg-input border-border text-foreground"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Please provide the date when the settlement occurred
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
             
-            {/* Underwriting Warning Chips */}
+            {/* Risk Indicators */}
             {(formData.bounceLatestMonth || formData.overduesPending || formData.settlementWriteOff || formData.cibilScore < 650) && (
               <div className="flex flex-wrap gap-2">
                 {formData.bounceLatestMonth && (
                   <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-destructive/20 text-destructive flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    Recent Bounce Detected
+                    Recent Bounce
                   </span>
                 )}
                 {formData.overduesPending && (
@@ -1027,219 +993,282 @@ export function LoanForm({ onSubmit, onBack }: LoanFormProps) {
           </div>
         )
       
-      // Step 6: Review & Submit
+      // Step 5: Eligibility Engine
+      case 5:
+        // Trigger calculation on first render of this step
+        if (!eligibilityResult && !isCalculatingEligibility) {
+          calculateEligibility()
+        }
+        
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-foreground mb-2">Eligibility Engine</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI-powered risk assessment and lender recommendations
+              </p>
+            </div>
+            
+            {isCalculatingEligibility ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </div>
+                <h4 className="text-lg font-semibold text-foreground mb-2">Calculating Eligibility</h4>
+                <p className="text-muted-foreground mb-6">Analyzing your profile for best matches...</p>
+                <div className="max-w-xs mx-auto space-y-2">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 rounded-full bg-primary animate-pulse" />
+                    <span>Analyzing credit profile...</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 rounded-full bg-primary/60 animate-pulse" style={{ animationDelay: "0.2s" }} />
+                    <span>Calculating risk score...</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: "0.4s" }} />
+                    <span>Matching with lenders...</span>
+                  </div>
+                </div>
+              </div>
+            ) : eligibilityResult ? (
+              <div className="space-y-6">
+                {/* Risk Assessment */}
+                <Card className="bg-secondary/30 border-border">
+                  <CardContent className="p-6">
+                    <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      Risk Assessment
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center p-4 rounded-xl bg-card border border-border">
+                        <p className="text-sm text-muted-foreground mb-1">Risk Level</p>
+                        <p className={`text-2xl font-bold ${
+                          eligibilityResult.riskLevel === "Low" ? "text-primary" :
+                          eligibilityResult.riskLevel === "Medium" ? "text-warning" : "text-destructive"
+                        }`}>
+                          {eligibilityResult.riskLevel}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-card border border-border">
+                        <p className="text-sm text-muted-foreground mb-1">Risk Score</p>
+                        <p className="text-2xl font-bold text-foreground">{eligibilityResult.riskScore}/100</p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-card border border-border">
+                        <p className="text-sm text-muted-foreground mb-1">Estimated ROI</p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {eligibilityResult.estimatedROI.min}% - {eligibilityResult.estimatedROI.max}%
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Loan Eligibility */}
+                <Card className="bg-secondary/30 border-border">
+                  <CardContent className="p-6">
+                    <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
+                      <Target className="w-5 h-5 text-primary" />
+                      Loan Eligibility
+                    </h4>
+                    <div className="text-center p-6 rounded-xl bg-primary/10 border border-primary/20">
+                      <p className="text-sm text-muted-foreground mb-2">Maximum Eligible Amount</p>
+                      <p className="text-4xl font-bold text-primary">
+                        INR {eligibilityResult.maxEligibleAmount.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Based on your credit profile and employment details
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Lender Recommendations */}
+                <Card className="bg-secondary/30 border-border">
+                  <CardContent className="p-6">
+                    <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
+                      <Building className="w-5 h-5 text-primary" />
+                      Lender Recommendation
+                    </h4>
+                    <div className="space-y-3">
+                      {eligibilityResult.recommendedLenders.map((lender, index) => (
+                        <div 
+                          key={lender.name}
+                          className={`p-4 rounded-xl border ${
+                            index === 0 ? "bg-primary/10 border-primary/30" : "bg-card border-border"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                index === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+                              }`}>
+                                <Building2 className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground flex items-center gap-2">
+                                  {lender.name}
+                                  {index === 0 && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
+                                      Best Match
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Up to INR {lender.maxAmount.toLocaleString()} @ {lender.roi}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-semibold text-primary">{lender.matchScore}%</p>
+                              <p className="text-xs text-muted-foreground">Match</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Recalculate Button */}
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEligibilityResult(null)
+                      calculateEligibility()
+                    }}
+                    className="border-primary text-primary hover:bg-primary/10"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Recalculate Eligibility
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )
+      
+      // Step 6: Submit Application
       case 6:
         return (
           <div className="space-y-6">
             <div className="text-center py-4">
               <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-primary" />
+                <Send className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Application Review</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">Submit Application</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Review your application details before submitting for AI analysis
+                Review your application summary and submit for processing
               </p>
             </div>
             
-            {/* Personal Details Summary */}
+            {/* Application Summary */}
             <Card className="bg-secondary/30 border-border">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" />
-                    Personal Details
-                  </h4>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)} className="text-primary hover:text-primary/80">
-                    Edit
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Full Name</p>
-                    <p className="font-medium text-foreground">{formData.fullName || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Age</p>
-                    <p className="font-medium text-foreground">{formData.age || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Location</p>
-                    <p className="font-medium text-foreground">{formData.location || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Case Type</p>
-                    <p className="font-medium text-foreground">{formData.caseType || "Not selected"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Loan Details Summary */}
-            <Card className="bg-secondary/30 border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-primary" />
-                    Loan Details
-                  </h4>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)} className="text-primary hover:text-primary/80">
-                    Edit
-                  </Button>
-                </div>
-                {formData.caseType === "Fresh" ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Loan Type</p>
-                      <p className="font-medium text-foreground">{formData.expectedLoanType || "Not provided"}</p>
+                <h4 className="font-medium text-foreground mb-4">Application Summary</h4>
+                
+                <div className="space-y-4">
+                  {/* Personal Details */}
+                  <div className="flex items-start justify-between p-3 rounded-lg bg-card border border-border">
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-foreground">Personal Details</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formData.fullName || "Not provided"} | Age: {formData.age || "-"} | {formData.location || "-"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Expected ROI</p>
-                      <p className="font-medium text-foreground">{formData.expectedROI ? `${formData.expectedROI}%` : "Not provided"}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Current EMI</p>
-                      <p className="font-medium text-foreground">{formData.currentEMI ? `INR ${parseInt(formData.currentEMI).toLocaleString()}` : "Not provided"}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Principal Outstanding</p>
-                      <p className="font-medium text-foreground">{formData.principalOutstanding ? `INR ${parseInt(formData.principalOutstanding).toLocaleString()}` : "Not provided"}</p>
-                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)} className="text-primary">
+                      Edit
+                    </Button>
                   </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Loans for Transfer: {formData.existingLoans.length}</p>
-                    {formData.existingLoans.map((loan, idx) => (
-                      <div key={loan.id} className="p-3 rounded-lg bg-card border border-border mb-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">{idx + 1}. {loan.loanType || "Loan"} - {loan.lender || "Unknown Bank"}</span>
-                          <span className="text-sm text-muted-foreground">{loan.outstandingAmount ? `INR ${parseInt(loan.outstandingAmount).toLocaleString()}` : ""}</span>
+                  
+                  {/* Loan Details */}
+                  <div className="flex items-start justify-between p-3 rounded-lg bg-card border border-border">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-foreground">Loan Details ({formData.caseType || "Not selected"})</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formData.caseType === "Fresh" 
+                            ? `${formData.expectedLoanType || "Type not selected"} | Expected ROI: ${formData.expectedROI || "-"}%`
+                            : `${formData.existingLoans.length} loans for transfer`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)} className="text-primary">
+                      Edit
+                    </Button>
+                  </div>
+                  
+                  {/* Employment */}
+                  <div className="flex items-start justify-between p-3 rounded-lg bg-card border border-border">
+                    <div className="flex items-center gap-3">
+                      <Briefcase className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-foreground">Employment Details</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formData.companyType || "Not provided"} | Tenure: {formData.companyAge || "-"} years | Salary: {formData.salaryCreditType || "-"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(3)} className="text-primary">
+                      Edit
+                    </Button>
+                  </div>
+                  
+                  {/* Credit Profile */}
+                  <div className="flex items-start justify-between p-3 rounded-lg bg-card border border-border">
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-foreground">Credit Profile</p>
+                        <p className="text-sm text-muted-foreground">
+                          CIBIL: {formData.cibilScore} ({getCibilRiskLabel(formData.cibilScore).label}) | Enquiries: {formData.enquiriesLast3Months}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="text-primary">
+                      Edit
+                    </Button>
+                  </div>
+                  
+                  {/* Eligibility */}
+                  {eligibilityResult && (
+                    <div className="flex items-start justify-between p-3 rounded-lg bg-card border border-border">
+                      <div className="flex items-center gap-3">
+                        <Target className="w-5 h-5 text-primary" />
+                        <div>
+                          <p className="font-medium text-foreground">Eligibility Assessment</p>
+                          <p className="text-sm text-muted-foreground">
+                            Risk: {eligibilityResult.riskLevel} | Max Amount: INR {eligibilityResult.maxEligibleAmount.toLocaleString()}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Employment Details Summary */}
-            <Card className="bg-secondary/30 border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-primary" />
-                    Employment Details
-                  </h4>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(3)} className="text-primary hover:text-primary/80">
-                    Edit
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Company Type</p>
-                    <p className="font-medium text-foreground">{formData.companyType || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Employment Tenure</p>
-                    <p className="font-medium text-foreground">{formData.companyAge ? `${formData.companyAge} years` : "Not provided"}</p>
-                  </div>
+                      <Button variant="ghost" size="sm" onClick={() => setCurrentStep(5)} className="text-primary">
+                        View
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
             
-            {/* Salary Details Summary */}
-            <Card className="bg-secondary/30 border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-primary" />
-                    Salary Details
-                  </h4>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="text-primary hover:text-primary/80">
-                    Edit
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Salary Credit Type</p>
-                    <p className="font-medium text-foreground">{formData.salaryCreditType || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Net Salary</p>
-                    <p className="font-medium text-foreground">{formData.netSalary ? `INR ${parseInt(formData.netSalary).toLocaleString()}` : "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Fixed Component</p>
-                    <p className="font-medium text-foreground">{formData.fixedSalaryComponent ? `INR ${parseInt(formData.fixedSalaryComponent).toLocaleString()}` : "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Incentive</p>
-                    <p className="font-medium text-foreground">{formData.incentiveAmount ? `INR ${parseInt(formData.incentiveAmount).toLocaleString()} (${formData.incentiveFrequency})` : "Not provided"}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {formData.pfDeducted && <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">PF Deducted</span>}
-                  {formData.tdsDeducted && <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">TDS Deducted</span>}
-                  {formData.officialMailAvailable && <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">Official Mail Available</span>}
-                  {formData.existingHomeLoan && <span className="px-2 py-1 rounded-full text-xs bg-warning/20 text-warning">Has Home Loan</span>}
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Credit Assessment Summary */}
-            <Card className="bg-secondary/30 border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    Credit Assessment
-                  </h4>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(5)} className="text-primary hover:text-primary/80">
-                    Edit
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">CIBIL Score</p>
-                    <p className={`font-medium ${getCibilRiskLabel(formData.cibilScore).color}`}>
-                      {formData.cibilScore} ({getCibilRiskLabel(formData.cibilScore).label})
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Enquiries (3 months)</p>
-                    <p className="font-medium text-foreground">{formData.enquiriesLast3Months}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Recent Bounce</p>
-                    <p className={`font-medium ${formData.bounceLatestMonth ? "text-destructive" : "text-primary"}`}>
-                      {formData.bounceLatestMonth ? "Yes" : "No"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Overdues Pending</p>
-                    <p className={`font-medium ${formData.overduesPending ? "text-destructive" : "text-primary"}`}>
-                      {formData.overduesPending ? "Yes" : "No"}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Submit Actions */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1 border-border text-foreground hover:bg-secondary"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Draft
-              </Button>
+            {/* Submit Button */}
+            <div className="flex flex-col gap-4 pt-4">
               <Button
                 onClick={handleSubmit}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-lg"
               >
-                <Sparkles className="w-4 h-4 mr-2" />
+                <Sparkles className="w-5 h-5 mr-2" />
                 Submit Application
               </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                By submitting, you agree to our terms and conditions. Your application will be processed for AI-powered lender matching.
+              </p>
             </div>
           </div>
         )
